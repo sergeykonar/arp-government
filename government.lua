@@ -9,26 +9,26 @@ local vk = require 'vkeys'
 encoding.default = "CP1251"
 local u8 = encoding.UTF8
 
-update_state = false -- Р•СЃР»Рё РїРµСЂРµРјРµРЅРЅР°СЏ == true, Р·РЅР°С‡РёС‚ РЅР°С‡РЅС‘С‚СЃСЏ РѕР±РЅРѕРІР»РµРЅРёРµ.
-update_found = false -- Р•СЃР»Рё Р±СѓРґРµС‚ true, Р±СѓРґРµС‚ РґРѕСЃС‚СѓРїРЅР° РєРѕРјР°РЅРґР° /update.
+update_state = false -- Если переменная == true, значит начнётся обновление.
+update_found = false -- Если будет true, будет доступна команда /update.
 
 local script_vers = 1.2
-local script_vers_text = "v1.2" -- РќР°Р·РІР°РЅРёРµ РЅР°С€РµР№ РІРµСЂСЃРёРё. Р’ Р±СѓРґСѓС‰РµРј Р±СѓРґРµРј РµС‘ РІС‹РІРѕРґРёС‚СЊ РїРѕР»Р·РѕРІР°С‚РµР»СЋ.
+local script_vers_text = "v1.2" -- Название нашей версии. В будущем будем её выводить ползователю.
 
-local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/update.ini' -- РџСѓС‚СЊ Рє ini С„Р°Р№Р»Сѓ. РџРѕР·Р¶Рµ РЅР°Рј РїРѕРЅР°РґРѕР±РёС‚СЊСЃСЏ.
+local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/update.ini' -- Путь к ini файлу. Позже нам понадобиться.
 local update_path = getWorkingDirectory() .. "\\config\\update.ini"
 
 
-local script_url = '' -- РџСѓС‚СЊ СЃРєСЂРёРїС‚Сѓ.
+local script_url = '' -- Путь скрипту.
 local script_path = thisScript().path
 
 function file_exists(file_path)
-    local file = io.open(file_path, "r") -- РїС‹С‚Р°РµРјСЃСЏ РѕС‚РєСЂС‹С‚СЊ С„Р°Р№Р» РЅР° С‡С‚РµРЅРёРµ
+    local file = io.open(file_path, "r") -- пытаемся открыть файл на чтение
     if file then
-        file:close()  -- РµСЃР»Рё С„Р°Р№Р» СЃСѓС‰РµСЃС‚РІСѓРµС‚, Р·Р°РєСЂС‹РІР°РµРј РµРіРѕ
+        file:close()  -- если файл существует, закрываем его
         return true
     else
-        return false  -- С„Р°Р№Р» РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚
+        return false  -- файл не существует
     end
 end
 
@@ -38,9 +38,9 @@ function check_update(onDone)
             return
         end
 
-        -- Р¤Р°Р№Р» РЅРµ Р·Р°РіСЂСѓР·РёР»СЃСЏ
+        -- Файл не загрузился
         if not file_exists(update_path) then
-            sampAddChatMessage("{FF0000}РћС€РёР±РєР°: С„Р°Р№Р» update.ini РЅРµ Р·Р°РіСЂСѓР¶РµРЅ!", -1)
+            sampAddChatMessage("{FF0000}Ошибка: файл update.ini не загружен!", -1)
             if onDone then onDone() end
             return
         end
@@ -48,46 +48,46 @@ function check_update(onDone)
         local updateIni = inicfg.load(nil, update_path)
 
         if not updateIni then
-            sampAddChatMessage("{FF0000}РћС€РёР±РєР° С‡С‚РµРЅРёСЏ update.ini!", -1)
+            sampAddChatMessage("{FF0000}Ошибка чтения update.ini!", -1)
             if onDone then onDone() end
             return
         end
 
         if not updateIni.info or not updateIni.info.vers then
-            sampAddChatMessage("{FF0000}РќРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚ update.ini!", -1)
+            sampAddChatMessage("{FF0000}Неверный формат update.ini!", -1)
             if onDone then onDone() end
             return
         end
 
-        -- РџСЂРѕРІРµСЂРєР° РІРµСЂСЃРёРё
+        -- Проверка версии
         if tonumber(updateIni.info.vers) > script_vers then
-            sampAddChatMessage("{FFFFFF}РќР°Р№РґРµРЅР° РЅРѕРІР°СЏ РІРµСЂСЃРёСЏ: {32CD32}"..updateIni.info.vers_text, -1)
-            sampAddChatMessage("{FFFFFF}Р’РІРµРґРёС‚Рµ {32CD32}/update {FFFFFF}РґР»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ.", -1)
+            sampAddChatMessage("{FFFFFF}Найдена новая версия: {32CD32}"..updateIni.info.vers_text, -1)
+            sampAddChatMessage("{FFFFFF}Введите {32CD32}/update {FFFFFF}для обновления.", -1)
 
             update_found = true
 
             sampRegisterChatCommand('update', function()
                 update_state = true
-                sampAddChatMessage("{32CD32}РќР°С‡РёРЅР°СЋ РѕР±РЅРѕРІР»РµРЅРёРµ...", -1)
+                sampAddChatMessage("{32CD32}Начинаю обновление...", -1)
 
                 downloadUrlToFile(updateIni.info.script_url, script_path, function(_, st)
                     if st == dlstatus.STATUSEX_ENDDOWNLOAD then
-                        sampAddChatMessage("{32CD32}РЎРєСЂРёРїС‚ СѓСЃРїРµС€РЅРѕ РѕР±РЅРѕРІР»С‘РЅ! РџРµСЂРµР·Р°РіСЂСѓР·РёС‚Рµ РµРіРѕ.", -1)
+                        sampAddChatMessage("{32CD32}Скрипт успешно обновлён! Перезагрузите его.", -1)
                     end
                 end)
             end)
         else
-            sampAddChatMessage("{FFFFFF}РћР±РЅРѕРІР»РµРЅРёР№ РЅРµС‚.", -1)
+            sampAddChatMessage("{FFFFFF}Обновлений нет.", -1)
         end
 
-        -- ?? РІС‹Р·С‹РІР°РµРј callback РџРћРЎР›Р• Р·Р°РІРµСЂС€РµРЅРёСЏ
+        -- ?? вызываем callback ПОСЛЕ завершения
         if onDone then onDone() end
     end)
 end
 
 
 
--- РљРѕРЅС„РёРі РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+-- Конфиг по умолчанию
 local defaultConfig = {
     settings = {
         rank = 1,
@@ -113,30 +113,30 @@ local invite_window = imgui.ImBool(false)
 
 
 
--- РўР°Р±Р»РёС†Р° СЃРѕРѕС‚РІРµС‚СЃС‚РІРёР№
+-- Таблица соответствий
 local department_map = {
-    ["LS"] = u8"РњСЌСЂРёСЏ Р›РЎ",
-    ["LV"] = u8"РњСЌСЂРёСЏ Р›Р’",
-    ["SF"] = u8"РњСЌСЂРёСЏ РЎР¤"
+    ["LS"] = u8"Мэрия ЛС",
+    ["LV"] = u8"Мэрия ЛВ",
+    ["SF"] = u8"Мэрия СФ"
 }
 
 local department_reverse_map = {
-    [u8"РњСЌСЂРёСЏ Р›РЎ"] = "LS",
-    [u8"РњСЌСЂРёСЏ Р›Р’"] = "LV",
-    [u8"РњСЌСЂРёСЏ РЎР¤"] = "SF"
+    [u8"Мэрия ЛС"] = "LS",
+    [u8"Мэрия ЛВ"] = "LV",
+    [u8"Мэрия СФ"] = "SF"
 }
 
--- Р—Р°РіСЂСѓР·РєР° РєРѕРЅС„РёРіР°
--- Р—Р°РіСЂСѓР·РєР° РєРѕРЅС„РёРіР°
--- Р—Р°РіСЂСѓР·РєР° РєРѕРЅС„РёРіР°
--- Р—Р°РіСЂСѓР¶Р°РµРј РёР»Рё СЃРѕР·РґР°С‘Рј РєРѕРЅС„РёРі
--- Р—Р°РіСЂСѓР¶Р°РµРј РёР»Рё СЃРѕР·РґР°С‘Рј РєРѕРЅС„РёРі
+-- Загрузка конфига
+-- Загрузка конфига
+-- Загрузка конфига
+-- Загружаем или создаём конфиг
+-- Загружаем или создаём конфиг
 local config = inicfg.load(defaultConfig, iniFilePath)
-inicfg.save(config, iniFilePath) -- СЃРѕС…СЂР°РЅСЏРµРј РїСЂРё РїРµСЂРІРѕРј Р·Р°РїСѓСЃРєРµ
+inicfg.save(config, iniFilePath) -- сохраняем при первом запуске
 
 
 
--- Р¤СѓРЅРєС†РёСЏ split
+-- Функция split
 function split(str, sep)
     local t = {}
     for s in string.gmatch(str, "([^"..sep.."]+)") do
@@ -145,7 +145,7 @@ function split(str, sep)
     return t
 end
 
--- РўРµРїРµСЂСЊ СѓР¶Рµ Р·Р°РіСЂСѓР¶Р°РµРј gnews
+-- Теперь уже загружаем gnews
 local defaultGnewsConfig = {
     news = {}
 }
@@ -166,7 +166,7 @@ table.sort(keys, function(a, b)
     return na < nb
 end)
 
--- РџСЂРѕС…РѕРґРёРј РІ РѕС‚СЃРѕСЂС‚РёСЂРѕРІР°РЅРЅРѕРј РїРѕСЂСЏРґРєРµ
+-- Проходим в отсортированном порядке
 for _, k in ipairs(keys) do
     local line = gnewsCfg.news[k]
     local lines = split(line, "|")
@@ -179,24 +179,24 @@ for _, k in ipairs(keys) do
     table.insert(gnewsBuffers, bufferLines)
 end
 
--- РќР°Р·РІР°РЅРёСЏ СЂР°РЅРіРѕРІ
+-- Названия рангов
 local rank_names = {
-    u8"РћС…СЂР°РЅРЅРёРє",
-    u8"РќР°С‡Р°Р»СЊРЅРёРє РѕС…СЂР°РЅС‹",
-    u8"РЎРµРєСЂРµС‚Р°СЂСЊ",
-    u8"РЎС‚Р°СЂС€РёР№ СЃРµРєСЂРµС‚Р°СЂСЊ",
-    u8"РђРґРІРѕРєР°С‚",
-    u8"Р›РёС†РµРЅР·С‘СЂ",
-    u8"РЎС‚Р°СЂС€РёР№ Р»РёС†РµРЅР·С‘СЂ",
-    u8"Р”РїРµС‚СѓС‚Р°С‚",
-    u8"Р—Р°Рј. РјСЌСЂР°",
-    u8"РњСЌСЂ"
+    u8"Охранник",
+    u8"Начальник охраны",
+    u8"Секретарь",
+    u8"Старший секретарь",
+    u8"Адвокат",
+    u8"Лицензёр",
+    u8"Старший лицензёр",
+    u8"Дпетутат",
+    u8"Зам. мэра",
+    u8"Мэр"
 }
 
--- РџРѕРґСЂР°Р·РґРµР»РµРЅРёСЏ (РѕС‚РѕР±СЂР°Р¶Р°РµРјС‹Рµ РІ РёРЅС‚РµСЂС„РµР№СЃРµ)
-local departments = { u8"РњСЌСЂРёСЏ Р›РЎ", u8"РњСЌСЂРёСЏ Р›Р’", u8"РњСЌСЂРёСЏ РЎР¤" }
+-- Подразделения (отображаемые в интерфейсе)
+local departments = { u8"Мэрия ЛС", u8"Мэрия ЛВ", u8"Мэрия СФ" }
 
--- РћРїСЂРµРґРµР»СЏРµРј РёРЅРґРµРєСЃ С‚РµРєСѓС‰РµРіРѕ РґРµРїР°СЂС‚Р°РјРµРЅС‚Р°
+-- Определяем индекс текущего департамента
 local department_index = 1
 for i, name in ipairs(departments) do
     if name == department_map[config.settings.department] then
@@ -218,31 +218,31 @@ local isTargetNameRP = nil
 local targetId = nil
 local exampleHotKey;
 
--- ImGui РїРµСЂРµРјРµРЅРЅС‹Рµ
+-- ImGui переменные
 local rank_selected = imgui.ImInt(config.settings.rank - 1)
 local department_selected = imgui.ImInt(department_index - 1)
 
--- РћСЃРЅРѕРІРЅРѕРµ РѕРєРЅРѕ ImGui
--- С‚РµРєСѓС‰РµРµ СЃРѕСЃС‚РѕСЏРЅРёРµ РІРєР»Р°РґРєРё
-local current_tab = 1 -- 1 = РќР°СЃС‚СЂРѕР№РєРё, 2 = РџРѕРјРѕС‰СЊ
+-- Основное окно ImGui
+-- текущее состояние вкладки
+local current_tab = 1 -- 1 = Настройки, 2 = Помощь
 
 local default_color = imgui.GetStyleColorVec4(imgui.Col.Button)
-local inactive_color = imgui.ImVec4(0.5, 0.5, 0.5, 1.0) -- СЃРµСЂС‹Р№
+local inactive_color = imgui.ImVec4(0.5, 0.5, 0.5, 1.0) -- серый
 
 function imgui.OnDrawFrame()
 
     if main_window_state.v then
         imgui.SetNextWindowSize(imgui.ImVec2(550, 250), imgui.Cond.FirstUseEver) 
-        imgui.Begin(u8'РќР°СЃС‚СЂРѕР№РєРё Government Script', main_window_state)
+        imgui.Begin(u8'Настройки Government Script', main_window_state)
 
-        -- Р›РµРІР°СЏ РїР°РЅРµР»СЊ СЃ РєРЅРѕРїРєР°РјРё
+        -- Левая панель с кнопками
         imgui.BeginChild("TabsPanel", imgui.ImVec2(150, 0), true)
         if current_tab == 1 then
             imgui.PushStyleColor(imgui.Col.Button, default_color)
         else
             imgui.PushStyleColor(imgui.Col.Button, inactive_color)
         end
-        if imgui.Button(u8"РќР°СЃС‚СЂРѕР№РєРё", imgui.ImVec2(-1, 30)) then current_tab = 1 end
+        if imgui.Button(u8"Настройки", imgui.ImVec2(-1, 30)) then current_tab = 1 end
         imgui.PopStyleColor()
         imgui.Spacing()
         if current_tab == 2 then
@@ -252,29 +252,29 @@ function imgui.OnDrawFrame()
         end
     
 
-        if imgui.Button(u8"РџРѕРјРѕС‰СЊ", imgui.ImVec2(-1, 30)) then current_tab = 2 end
+        if imgui.Button(u8"Помощь", imgui.ImVec2(-1, 30)) then current_tab = 2 end
         imgui.PopStyleColor()
 
-        -- Р“РѕСЃ. РЅРѕРІРѕСЃС‚Рё (С‚РѕР»СЊРєРѕ РґР»СЏ СЂР°РЅРіР° 10)
+        -- Гос. новости (только для ранга 10)
         if getRang() == 10 then
             if current_tab == 3 then
                 imgui.PushStyleColor(imgui.Col.Button, default_color)
             else
                 imgui.PushStyleColor(imgui.Col.Button, inactive_color)
             end
-            if imgui.Button(u8"Р“РѕСЃ. РЅРѕРІРѕСЃС‚Рё", imgui.ImVec2(-1, 30)) then current_tab = 3 end
+            if imgui.Button(u8"Гос. новости", imgui.ImVec2(-1, 30)) then current_tab = 3 end
             imgui.PopStyleColor()
         end
         
 
         imgui.EndChild()
 
-        imgui.SameLine() -- С‡С‚РѕР±С‹ РїСЂР°РІР°СЏ РїР°РЅРµР»СЊ Р±С‹Р»Р° СЃРїСЂР°РІР°
+        imgui.SameLine() -- чтобы правая панель была справа
 
-        -- РџСЂР°РІР°СЏ РїР°РЅРµР»СЊ СЃ СЃРѕРґРµСЂР¶РёРјС‹Рј РІРєР»Р°РґРєРё
+        -- Правая панель с содержимым вкладки
         imgui.BeginChild("ContentPanel", imgui.ImVec2(0, 0), false)
         if current_tab == 1 then
-            imgui.Text(u8"РљРЅРѕРїРєР° РґРµР№СЃС‚РІРёСЏ:")
+            imgui.Text(u8"Кнопка действия:")
             imgui.SameLine()
             if exampleHotKey:ShowHotKey("OpenMenu", imgui.ImVec2(150, 30)) then
                 config.settings.bind = encodeJson(exampleHotKey:GetHotKey())
@@ -282,25 +282,25 @@ function imgui.OnDrawFrame()
             end
 
 
-            imgui.Text(u8"Р’Р°С€Рµ РёРјСЏ: "..getMyName())
-            imgui.Text(u8"Р’С‹Р±РµСЂРёС‚Рµ РІР°С€ СЂР°РЅРі РІ РїСЂР°РІРёС‚РµР»СЊСЃС‚РІРµ:")
-            imgui.Combo(u8"Р Р°РЅРі", rank_selected, rank_names, #rank_names)
-            imgui.Text(u8"Р’С‹Р±РµСЂРёС‚Рµ РїРѕРґСЂР°Р·РґРµР»РµРЅРёРµ РїСЂР°РІРёС‚РµР»СЊСЃС‚РІР°:")
-            imgui.Combo(u8"РџРѕРґСЂР°Р·РґРµР»РµРЅРёРµ", department_selected, departments, #departments)
-            if imgui.Button(u8"РЎРѕС…СЂР°РЅРёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё", imgui.ImVec2(200, 30)) then
+            imgui.Text(u8"Ваше имя: "..getMyName())
+            imgui.Text(u8"Выберите ваш ранг в правительстве:")
+            imgui.Combo(u8"Ранг", rank_selected, rank_names, #rank_names)
+            imgui.Text(u8"Выберите подразделение правительства:")
+            imgui.Combo(u8"Подразделение", department_selected, departments, #departments)
+            if imgui.Button(u8"Сохранить настройки", imgui.ImVec2(200, 30)) then
                 config.settings.rank = rank_selected.v + 1
                 local dep_name = departments[department_selected.v + 1]
                 config.settings.department = department_reverse_map[dep_name] or "LS"
                 inicfg.save(config, iniFilePath)
-                sampAddChatMessage("{00FF00}[GovPanel]: РќР°СЃС‚СЂРѕР№РєРё СѓСЃРїРµС€РЅРѕ СЃРѕС…СЂР°РЅРµРЅС‹!", -1)
+                sampAddChatMessage("{00FF00}[GovPanel]: Настройки успешно сохранены!", -1)
             end
             imgui.SameLine()
-            if imgui.Button(u8"Р—Р°РєСЂС‹С‚СЊ", imgui.ImVec2(150, 30)) then
+            if imgui.Button(u8"Закрыть", imgui.ImVec2(150, 30)) then
                 main_window_state.v = false
             end
         elseif current_tab == 2 then
             local key = HOTKEY.getKeysText('OpenMenu')
-            imgui.Text(u8"РџРѕРјРѕС‰СЊ РїРѕ СЃРєСЂРёРїС‚Сѓ:\n\nвЂў Р’С‹Р±РµСЂРёС‚Рµ СЃРІРѕР№ СЂР°РЅРі Рё РїРѕРґСЂР°Р·РґРµР»РµРЅРёРµ.\nвЂў РќР°Р¶РјРёС‚Рµ 'РЎРѕС…СЂР°РЅРёС‚СЊ РЅР°СЃС‚СЂРѕР№РєРё' С‡С‚РѕР±С‹ РїСЂРёРјРµРЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ.\nвЂў Р’С‹Р±РµСЂРёС‚Рµ РєР»Р°РёРІС€Сѓ РґР»СЏ РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёСЏ СЃ РёРіСЂРѕРєРѕРј\nвЂў РќР°РІРµРґРёС‚Рµ РЅР° РёРіСЂРѕРєР° Рё РЅР°Р¶РјРёС‚Рµ РџРљРњ + "..key.."\nвЂў РСЃРїРѕР»СЊР·СѓР№С‚Рµ СЌС‚Сѓ РІРєР»Р°РґРєСѓ, С‡С‚РѕР±С‹ РѕР·РЅР°РєРѕРјРёС‚СЊСЃСЏ СЃ РёРЅСЃС‚СЂСѓРєС†РёРµР№.")
+            imgui.Text(u8"Помощь по скрипту:\n\n• Выберите свой ранг и подразделение.\n• Нажмите 'Сохранить настройки' чтобы применить изменения.\n• Выберите клаившу для взаимодействия с игроком\n• Наведите на игрока и нажмите ПКМ + "..key.."\n• Используйте эту вкладку, чтобы ознакомиться с инструкцией.")
         elseif current_tab == 3 then
             imgui.BeginChild("GNewsPanel", imgui.ImVec2(0, 0), true)
 
@@ -309,34 +309,34 @@ function imgui.OnDrawFrame()
             local toAddLine = nil
 
             for i, newsLines in ipairs(gnewsBuffers) do
-                imgui.Text(u8("Р“РѕСЃ. РЅРѕРІРѕСЃС‚СЊ в„–" .. i))
+                imgui.Text(u8("Гос. новость №" .. i))
                 for j, buf in ipairs(newsLines) do
                     if imgui.InputText("##news_" .. tostring(newsLines) .. "_line_" .. j, buf) then
-                        gnews[i][j] = buf.v or ""  -- СЃРѕС…СЂР°РЅСЏРµРј СЃС‚СЂРѕРєСѓ
+                        gnews[i][j] = buf.v or ""  -- сохраняем строку
                     end
                 end
 
-                if imgui.Button(u8("Р”РѕР±Р°РІРёС‚СЊ СЃС‚СЂРѕРєСѓ##add_line_" .. tostring(newsLines))) then
+                if imgui.Button(u8("Добавить строку##add_line_" .. tostring(newsLines))) then
                     toAddLine = i
                 end
 
-                if imgui.Button(u8("РЈРґР°Р»РёС‚СЊ РЅРѕРІРѕСЃС‚СЊ##delete_news_" .. tostring(newsLines))) then
+                if imgui.Button(u8("Удалить новость##delete_news_" .. tostring(newsLines))) then
                     toDelete = i
                 end
 
                 imgui.Separator()
             end
         
-            if imgui.Button(u8("Р”РѕР±Р°РІРёС‚СЊ РЅРѕРІРѕСЃС‚СЊ"), imgui.ImVec2(-1, 25)) then
+            if imgui.Button(u8("Добавить новость"), imgui.ImVec2(-1, 25)) then
                 toAdd = true
             end
 
-            if imgui.Button(u8("РЎРѕС…СЂР°РЅРёС‚СЊ"), imgui.ImVec2(-1, 25)) then
+            if imgui.Button(u8("Сохранить"), imgui.ImVec2(-1, 25)) then
                 saveGnews()
-                sampAddChatMessage("{00FF00}[GovPanel]: Р“РѕСЃ. РЅРѕРІРѕСЃС‚Рё СЃРѕС…СЂР°РЅРµРЅС‹!", -1)
+                sampAddChatMessage("{00FF00}[GovPanel]: Гос. новости сохранены!", -1)
             end
 
-            -- РїСЂРёРјРµРЅСЏРµРј РёР·РјРµРЅРµРЅРёСЏ РџРћРЎР›Р• СЂРµРЅРґРµСЂР°
+            -- применяем изменения ПОСЛЕ рендера
             if toAddLine then
                 table.insert(gnews[toAddLine], "")
                 table.insert(gnewsBuffers[toAddLine], imgui.ImBuffer("", 256))
@@ -358,71 +358,71 @@ function imgui.OnDrawFrame()
         imgui.End()
     end
 
-    -- РћРєРЅРѕ Р»РёС†РµРЅР·РёР№
+    -- Окно лицензий
     if license_window.v then
-        imgui.Begin(u8'РњРµРЅСЋ Р»РёС†РµРЅР·РёР№', license_window, imgui.WindowFlags.AlwaysAutoResize)
+        imgui.Begin(u8'Меню лицензий', license_window, imgui.WindowFlags.AlwaysAutoResize)
 
     
-        if imgui.Button(u8'РџРѕРїСЂРѕСЃРёС‚СЊ Р»РёС†РµРЅР·РёРё', imgui.ImVec2(200, 30)) then
+        if imgui.Button(u8'Попросить лицензии', imgui.ImVec2(200, 30)) then
            askLic()
         end
 
-        if imgui.Button(u8'РџСЂРѕРґР°С‚СЊ Р»РёС†РµРЅР·РёСЋ РЅР° РѕСЂСѓР¶РёРµ', imgui.ImVec2(200, 30)) then
+        if imgui.Button(u8'Продать лицензию на оружие', imgui.ImVec2(200, 30)) then
             lua_thread.create(function ()
                 local currentDep = config.settings.department
             
-                sampSendChat("/do РџРѕСЂС‚С„РµР»СЊ СЃ РґРѕРєСѓРјРµРЅС‚Р°РјРё РІ СЂСѓРєРµ.")
+                sampSendChat("/do Портфель с документами в руке.")
                 wait(1000)
-                sampSendChat("/me РґРѕСЃС‚Р°Р» РёР· РїР°РїРєРё Р±Р»Р°РЅРє, СЂСѓС‡РєСѓ Рё РїРµС‡Р°С‚СЊ")
+                sampSendChat("/me достал из папки бланк, ручку и печать")
                 wait(800)
-                sampSendChat("/me Р·Р°РїРѕР»РЅСЏРµС‚ Р±Р»Р°РЅРє РґР»СЏ Р»РёС†РµРЅР·РёРё РЅР° РѕСЂСѓР¶РёРµ")
+                sampSendChat("/me заполняет бланк для лицензии на оружие")
                 wait(800)
-                sampSendChat("/do РРјСЏ РІР»Р°РґРµР»СЊС†Р° Р»РёС†РµРЅР·РёРё: "..targetRPName..".")
+                sampSendChat("/do Имя владельца лицензии: "..targetRPName..".")
                 wait(250)
-                sampSendChat("/me СЃРІРµСЂСЏРµС‚ РґР°РЅРЅС‹Рµ")
+                sampSendChat("/me сверяет данные")
                 wait(1000)
-                sampSendChat("/do Р‘Р»Р°РЅРє Р·Р°РїРѕР»РЅРµРЅ РІРµСЂРЅРѕ.")
+                sampSendChat("/do Бланк заполнен верно.")
                 wait(500)
-                sampSendChat("/me СЃС‚Р°РІРёС‚ РїРѕРґРїРёСЃСЊ Р»РёС†РµРЅР·РµСЂР°")
+                sampSendChat("/me ставит подпись лицензера")
                 wait(800)
-                sampSendChat("/me СЃС‚Р°РІРёС‚ РїРµС‡Р°С‚СЊ \"РђРґРјРёРЅРёСЃС‚СЂР°С†РёСЏ РіСѓР±РµСЂРЅР°С‚РѕСЂР° "..currentDep.."\".")
+                sampSendChat("/me ставит печать \"Администрация губернатора "..currentDep.."\".")
                 wait(800)
-                sampSendChat("/do Р”РѕРєСѓРјРµРЅС‚ РїРѕРґРїРёСЃР°РЅ, РїРµС‡Р°С‚СЊ РїРѕСЃС‚Р°РІР»РµРЅР°.")
+                sampSendChat("/do Документ подписан, печать поставлена.")
                 wait(800)
                 sampSendChat("/givelic "..targetId.."2 30000")
                 license_window.v = false
             end)
         end
 
-        if imgui.Button(u8'РџСЂРѕРґР°С‚СЊ РїСЂРѕС„. РїСЂР°РІР°', imgui.ImVec2(200, 30)) then
+        if imgui.Button(u8'Продать проф. права', imgui.ImVec2(200, 30)) then
             lua_thread.create(function ()
                 if (hasBasicLicense(targetRPName)) then
                     local currentDep = config.settings.department
 
-                    sampSendChat("/do РџРѕСЂС‚С„РµР»СЊ СЃ РґРѕРєСѓРјРµРЅС‚Р°РјРё РІ СЂСѓРєРµ.")
+                    sampSendChat("/do Портфель с документами в руке.")
                     wait(1000)
-                    sampSendChat("/me РґРѕСЃС‚Р°Р» РёР· РїР°РїРєРё Р±Р»Р°РЅРє, СЂСѓС‡РєСѓ Рё РїРµС‡Р°С‚СЊ")
+                    sampSendChat("/me достал из папки бланк, ручку и печать")
                     wait(800)
-                    sampSendChat("/me Р·Р°РїРѕР»РЅСЏРµС‚ Р±Р»Р°РЅРє РґР»СЏ РїСЂРѕС„РµСЃСЃРёРѕРЅР°Р»СЊРЅС‹С… РїСЂР°РІ")
+                    sampSendChat("/me заполняет бланк для профессиональных прав")
                     wait(800)
-                    sampSendChat("/do РРјСЏ РІР»Р°РґРµР»СЊС†Р° Р»РёС†РµРЅР·РёРё: "..targetRPName..".")
+                    sampSendChat("/do Имя владельца лицензии: "..targetRPName..".")
                     wait(250)
-                    sampSendChat("/me СЃРІРµСЂСЏРµС‚ РґР°РЅРЅС‹Рµ")
+                    sampSendChat("/me сверяет данные")
                     wait(1000)
-                    sampSendChat("/do Р‘Р»Р°РЅРє Р·Р°РїРѕР»РЅРµРЅ РІРµСЂРЅРѕ.")
+                    sampSendChat("/do Бланк заполнен верно.")
                     wait(500)
-                    sampSendChat("/me СЃС‚Р°РІРёС‚ РїРѕРґРїРёСЃСЊ Р»РёС†РµРЅР·РµСЂР°")
+                    sampSendChat("/me ставит подпись лицензера")
                     wait(800)
-                    sampSendChat("/me СЃС‚Р°РІРёС‚ РїРµС‡Р°С‚СЊ \"РђРґРјРёРЅРёСЃС‚СЂР°С†РёСЏ РіСѓР±РµСЂРЅР°С‚РѕСЂР° "..currentDep.."\".")
+                    sampSendChat("/me ставит печать \"Администрация губернатора "..currentDep.."\".")
                     wait(800)
-                    sampSendChat("/do Р”РѕРєСѓРјРµРЅС‚ РїРѕРґРїРёСЃР°РЅ, РїРµС‡Р°С‚СЊ РїРѕСЃС‚Р°РІР»РµРЅР°.")
+                    sampSendChat("/do Документ подписан, печать поставлена.")
                     wait(800)
                     sampSendChat("/givelic "..targetId.."1 10000")
                     license_window.v = false
                 elseif (hasProfessionalLicense(targetRPName)) then
-                    sampAddChatMessage('РЈ РёРіСЂРѕРєР° СѓР¶Рµ РµСЃС‚СЊ РїСЂРѕС„. РїСЂР°РІР°', -1)
+                    sampAddChatMessage('У игрока уже есть проф. права', -1)
                 else
-                    sampAddChatMessage('РџРµСЂРµРґ РїСЂРѕРґР°Р¶РµР№ Р»РёС†РµРЅР·РёРё РЅРµРѕР±С…РѕРґРёРјРѕ, С‡С‚РѕР±С‹ РІС‹ РїРѕРїСЂРѕСЃРёР»Рё РёРіСЂРѕРєР° РїРѕРєР°Р·Р°С‚СЊ Р»РёС†РµРЅР·РёРё', -1)
+                    sampAddChatMessage('Перед продажей лицензии необходимо, чтобы вы попросили игрока показать лицензии', -1)
                 end
             end)
         end
@@ -431,49 +431,49 @@ function imgui.OnDrawFrame()
     end
 
     if layer_window.v then
-        imgui.Begin(u8'РњРµРЅСЋ Р°РґРІРѕРєР°С‚Р°', layer_window, imgui.WindowFlags.AlwaysAutoResize)
+        imgui.Begin(u8'Меню адвоката', layer_window, imgui.WindowFlags.AlwaysAutoResize)
 
-        if imgui.Button(u8'РЎРєРѕР»СЊРєРѕ РѕСЃС‚Р°Р»РѕСЃСЊ СЃРёРґРµС‚СЊ?', imgui.ImVec2(200, 30)) then
+        if imgui.Button(u8'Сколько осталось сидеть?', imgui.ImVec2(200, 30)) then
             lua_thread.create(function ()
                 waitingForJailTime = true
-                sampSendChat("РџРѕРґСЃРєР°Р¶РёС‚Рµ РїРѕР¶Р°Р»СѓР№СЃС‚Р° СЃРєРѕР»СЊРєРѕ РІР°Рј РѕСЃС‚Р°Р»РѕСЃСЊ СЃРёРґРµС‚СЊ?")
+                sampSendChat("Подскажите пожалуйста сколько вам осталось сидеть?")
                 wait(500)
-                sampSendChat("Р­С‚Рѕ РЅРµРѕР±С…РѕРґРёРјРѕ РґР»СЏ РѕС„РѕСЂРјР»РµРЅРёСЏ РЈР”Рћ.")
+                sampSendChat("Это необходимо для оформления УДО.")
                 wait(250)
-                sampSendChat("/n Р’РІРµРґРё /time")
+                sampSendChat("/n Введи /time")
             end)
         end
 
-        if imgui.Button(u8'Р’С‹РїСѓСЃС‚РёС‚СЊ РёР· С‚СЋСЂСЊРјС‹', imgui.ImVec2(200, 30)) then
+        if imgui.Button(u8'Выпустить из тюрьмы', imgui.ImVec2(200, 30)) then
             lua_thread.create(function ()
                 if (jailTimeReceived) then
                     jailTimeReceived = false
-                    sampSendChat("/do РџРѕСЂС‚С„РµР»СЊ РІ СЂСѓРєРµ.")
+                    sampSendChat("/do Портфель в руке.")
                     wait(250)
-                    sampSendChat("/me РґРѕСЃС‚Р°Р» РёР· РїРѕСЂС‚С„РµР»СЏ РґРѕРєСѓРјРµРЅС‚ РѕР± РЈР”Рћ Рё СЂСѓС‡РєСѓ")
+                    sampSendChat("/me достал из портфеля документ об УДО и ручку")
                     wait(300)
-                    sampSendChat("/me Р·Р°РїРѕР»РЅСЏРµС‚ РґР°РЅРЅС‹Рµ Рѕ РєР»РёРµРЅС‚Рµ")
+                    sampSendChat("/me заполняет данные о клиенте")
                     wait(300)
-                    sampSendChat("/do РРјСЏ РєР»РёРµРЅС‚Р°: "..targetRPName)
+                    sampSendChat("/do Имя клиента: "..targetRPName)
                     wait(500)
-                    sampSendChat("РћС‚Р»РёС‡РЅРѕ. Р•С‰Рµ РїР°СЂСѓ РјРѕРјРµРЅС‚РѕРІ.")
+                    sampSendChat("Отлично. Еще пару моментов.")
                     wait(500)
-                    sampSendChat("/me РѕС‚РєСЂС‹Р» Р±Р°Р·Сѓ РґР°РЅРЅС‹С… РњР’Р”")
+                    sampSendChat("/me открыл базу данных МВД")
                     wait(800)
-                    sampSendChat("/me РѕС‚РєСЂС‹Р» Р»РёС‡РЅРѕРµ РґРµР»Рѕ РіСЂР°Р¶РґР°РЅРёРЅР°")
+                    sampSendChat("/me открыл личное дело гражданина")
                     wait(300)
-                    sampSendChat("/me РІРЅРѕСЃРёС‚ РёР·РјРµРЅРЅРёСЏ РІ Р»РёС‡РЅРѕРµ РґРµР»Рѕ РґР»СЏ РІС‹РїСѓСЃРєР° РїРѕ РЈР”Рћ")
+                    sampSendChat("/me вносит изменния в личное дело для выпуска по УДО")
                     wait(500)
-                    sampSendChat("/me РїРµСЂРµРґР°РµС‚ РґРѕРєСѓРјРµРЅС‚ РѕР± РЈР”Рћ РЅР° РїРѕРґРїРёСЃР°РЅРёРµ С‡РµР»РѕРІРµРєСѓ РЅР°РїСЂРѕС‚РёРІ")
+                    sampSendChat("/me передает документ об УДО на подписание человеку напротив")
                     wait(500)
-                    sampSendChat("/n /me РїРѕРґРїРёСЃР°Р»СЃСЏ(-Р°СЃСЊ)")
+                    sampSendChat("/n /me подписался(-ась)")
                     wait(1000)
                     sampSendChat("/free "..targetId.." "..releasePrice)
                     layer_window.v = false
                 else
-                    sampAddChatMessage('РљР»РёРµРЅС‚ РґРѕР»Р¶РµРЅ РІР°Рј СЃРѕРѕР±С‰РёС‚СЊ РѕСЃС‚Р°РІС‰РµРµСЃСЏ РІСЂРµРјСЏ РІ С‚СЋСЂСЊРјРµ С‡РµСЂРµР·' ..Color.GREEN .. ' /time', -1)
-                    sampAddChatMessage('РќР°Р¶РјРёС‚Рµ'..Color.ORANGE..' "РЎРєРѕР»СЊРєРѕ РѕСЃС‚Р°Р»РѕСЃСЊ СЃРёРґРµС‚СЊ"', -1)
-                    sampAddChatMessage('РЎРєСЂРёРїС‚ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РѕРїСЂРµРґРµР»РёС‚ СЃС‚РѕРёРјРѕСЃС‚СЊ РІС‹РїСѓСЃРєР° РїРѕ РЈР”Рћ', -1)
+                    sampAddChatMessage('Клиент должен вам сообщить оставщееся время в тюрьме через' ..Color.GREEN .. ' /time', -1)
+                    sampAddChatMessage('Нажмите'..Color.ORANGE..' "Сколько осталось сидеть"', -1)
+                    sampAddChatMessage('Скрипт автоматически определит стоимость выпуска по УДО', -1)
                 end
             end)
         end
@@ -482,19 +482,19 @@ function imgui.OnDrawFrame()
     end
 
     if invite_window.v then
-        imgui.Begin(u8'РњРµРЅСЋ', invite_window, imgui.WindowFlags.AlwaysAutoResize)
+        imgui.Begin(u8'Меню', invite_window, imgui.WindowFlags.AlwaysAutoResize)
 
-        if imgui.Button(u8'РџРѕРїСЂРѕСЃРёС‚СЊ РїР°СЃРїРѕСЂС‚ Рё Р»РёС†РµРЅР·РёРё', imgui.ImVec2(200, 30)) then
+        if imgui.Button(u8'Попросить паспорт и лицензии', imgui.ImVec2(200, 30)) then
             lua_thread.create(function ()
                 waitingForJailTime = true
-                sampSendChat("РџРѕРґСЃРєР°Р¶РёС‚Рµ РїРѕР¶Р°Р»СѓР№СЃС‚Р° СЃРєРѕР»СЊРєРѕ РІР°Рј РѕСЃС‚Р°Р»РѕСЃСЊ СЃРёРґРµС‚СЊ?")
+                sampSendChat("Подскажите пожалуйста сколько вам осталось сидеть?")
                 wait(250)
                 sampSendChat("/n /time")
                 layer_window.v = false
             end)
         end
 
-        if imgui.Button(u8'РџСЂРѕРІРµСЂРёС‚СЊ РЅР° Р§РЎ', imgui.ImVec2(200, 30)) then
+        if imgui.Button(u8'Проверить на ЧС', imgui.ImVec2(200, 30)) then
             invite_window.v = false
         end
 
@@ -505,7 +505,7 @@ end
 
 function askLic()
     lua_thread.create(function ()
-        sampSendChat("РџРѕРєР°Р¶РёС‚Рµ РїРѕР¶Р°Р»СѓР№СЃС‚Р° РІР°С€Рё Р»РёС†РµРЅР·РёРё.")
+        sampSendChat("Покажите пожалуйста ваши лицензии.")
         wait(250)
         local _, id = sampGetPlayerIdByCharHandle(PLAYER_PED)
         local r, i = sampGetPlayerIdByCharHandle(PLAYER_PED)
@@ -518,20 +518,20 @@ end
 
 function sampev.onServerMessage(color, text)
     if waitingForJailTime then
-        -- РџСЂРѕРІРµСЂСЏРµРј С„РѕСЂРјР°С‚: Nick_Surname РІС‹Р№РґРµС‚ РЅР° СЃРІРѕР±РѕРґСѓ С‡РµСЂРµР· 15 РјРёРЅСѓС‚.
-        local pattern = string.format("%s РІС‹Р№РґРµС‚ РЅР° СЃРІРѕР±РѕРґСѓ С‡РµСЂРµР· {.-}?(%%d+):%%d+", targetName)
+        -- Проверяем формат: Nick_Surname выйдет на свободу через 15 минут.
+        local pattern = string.format("%s выйдет на свободу через {.-}?(%%d+):%%d+", targetName)
 
         local minutes = string.match(text, pattern)
         if minutes then
             lua_thread.create(function ()
                 sampAddChatMessage(
-                    string.format("{00FF00}[LawyerPanel]:".. targetName.. " РІС‹Р№РґРµС‚ РЅР° СЃРІРѕР±РѕРґСѓ С‡РµСЂРµР· %s РјРёРЅСѓС‚.", minutes),
+                    string.format("{00FF00}[LawyerPanel]:".. targetName.. " выйдет на свободу через %s минут.", minutes),
                     -1
                 )
-                sampAddChatMessage("Р¦РµРЅР° РІС‹РїСѓСЃРєР° РёР· С‚СЋСЂСЊРјС‹ "..Color.GREEN..tostring(getReleasePrice(minutes).."$"), -1)
+                sampAddChatMessage("Цена выпуска из тюрьмы "..Color.GREEN..tostring(getReleasePrice(minutes).."$"), -1)
                 local key = HOTKEY.getKeysText('OpenMenu')
                 releasePrice = tostring(getReleasePrice(minutes))
-                sampAddChatMessage("Р”Р»СЏ РїСЂРѕРґРѕР»Р¶РµРЅРёСЏ РЅР°С†РµР»СЊС‚РµСЃСЊ РЅР° РёРіСЂРѕРєР° Рё РЅР°Р¶РјРёС‚Рµ РџРљРњ + "..key.." Рё РЅР°Р¶РјРёС‚Рµ \"Р’С‹РїСѓСЃС‚РёС‚СЊ РёР· С‚СЋСЂСЊРјС‹\"", -1)
+                sampAddChatMessage("Для продолжения нацельтесь на игрока и нажмите ПКМ + "..key.." и нажмите \"Выпустить из тюрьмы\"", -1)
                 waitingForJailTime = false
                 jailTimeReceived = true
             end)
@@ -539,25 +539,25 @@ function sampev.onServerMessage(color, text)
         end
     elseif isWaitingForLic then
         local cleanText = text:gsub("{%x%x%x%x%x%x}", ""):gsub("^%s+", "")
-        -- РќР°С‡Р°Р»Рѕ Р±Р»РѕРєР° Р»РёС†РµРЅР·РёР№
-         -- РЈР±РµРґРёРјСЃСЏ, С‡С‚Рѕ targetRPName СЃСѓС‰РµСЃС‚РІСѓРµС‚
+        -- Начало блока лицензий
+         -- Убедимся, что targetRPName существует
         if not targetRPName then return end
 
-        -- Р•СЃР»Рё С‚Р°Р±Р»РёС†С‹ РґР»СЏ РёРіСЂРѕРєР° РЅРµС‚ вЂ” СЃРѕР·РґР°С‘Рј
+        -- Если таблицы для игрока нет — создаём
         if not playerLicenses[targetRPName] then
-            playerLicenses[targetRPName] = { transport = "РќРµРёР·РІРµСЃС‚РЅРѕ", weapon = "РќРµРёР·РІРµСЃС‚РЅРѕ" }
+            playerLicenses[targetRPName] = { transport = "Неизвестно", weapon = "Неизвестно" }
         end
         
-        if cleanText:find("РќР° С‚СЂР°РЅСЃРїРѕСЂС‚:") then
-            local transport = cleanText:match("РќР° С‚СЂР°РЅСЃРїРѕСЂС‚:%s*(.+)")
-            playerLicenses[targetRPName].transport = transport or "РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚"
-        elseif cleanText:find("РќР° РѕСЂСѓР¶РёРµ:") then
-            local weapon = cleanText:match("РќР° РѕСЂСѓР¶РёРµ:%s*(.+)")
-            playerLicenses[targetRPName].weapon = weapon or "РћС‚СЃСѓС‚СЃС‚РІСѓРµС‚"
+        if cleanText:find("На транспорт:") then
+            local transport = cleanText:match("На транспорт:%s*(.+)")
+            playerLicenses[targetRPName].transport = transport or "Отсутствует"
+        elseif cleanText:find("На оружие:") then
+            local weapon = cleanText:match("На оружие:%s*(.+)")
+            playerLicenses[targetRPName].weapon = weapon or "Отсутствует"
             isWaitingForLic = false
             sampAddChatMessage(tostring(playerLicenses[targetRPName].transport), -1)
-        elseif cleanText:find("Р›РёС†РµРЅР·РёРё") == nil and cleanText:find("РќР° С‚СЂР°РЅСЃРїРѕСЂС‚") == nil and cleanText:find("РќР° РѕСЂСѓР¶РёРµ") == nil then
-            -- РљРѕРЅРµС† Р±Р»РѕРєР° Р»РёС†РµРЅР·РёР№
+        elseif cleanText:find("Лицензии") == nil and cleanText:find("На транспорт") == nil and cleanText:find("На оружие") == nil then
+            -- Конец блока лицензий
             
         end
     end
@@ -576,47 +576,47 @@ end
 
 function hasBasicLicense(playerName)
     if not playerLicenses[playerName] then
-        return false -- РёРЅС„РѕСЂРјР°С†РёРё Рѕ РёРіСЂРѕРєРµ РЅРµС‚
+        return false -- информации о игроке нет
     end
 
     local transportLicense = playerLicenses[playerName].transport or ""
-    return transportLicense:find("Р‘Р°Р·РѕРІС‹Рµ") ~= nil
+    return transportLicense:find("Базовые") ~= nil
 end
 
 function hasProfessionalLicense(playerName)
     if not playerLicenses[playerName] then
-        return false -- РёРЅС„РѕСЂРјР°С†РёРё Рѕ РёРіСЂРѕРєРµ РЅРµС‚
+        return false -- информации о игроке нет
     end
 
     local transportLicense = playerLicenses[playerName].transport or ""
-    return transportLicense:find("РџСЂРѕС„РµСЃСЃРёРѕРЅР°Р»СЊРЅС‹Р№ СѓСЂРѕРІРµРЅСЊ") ~= nil
+    return transportLicense:find("Профессиональный уровень") ~= nil
 end
 
--- РћСЃРЅРѕРІРЅРѕР№ С†РёРєР»
+-- Основной цикл
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(50) end
 
     check_update(function ()
-        if update_found then -- Р•СЃР»Рё РЅР°Р№РґРµРЅРѕ РѕР±РЅРѕРІР»РµРЅРёРµ, СЂРµРіРёСЃС‚СЂРёСЂСѓРµРј РєРѕРјР°РЅРґСѓ /update.
-            sampRegisterChatCommand('update', function()  -- Р•СЃР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅР°РїРёС€РµС‚ РєРѕРјР°РЅРґСѓ, РЅР°С‡РЅС‘С‚СЃСЏ РѕР±РЅРѕРІР»РµРЅРёРµ.
-                update_state = true -- Р•СЃР»Рё С‡РµР»РѕРІРµРє РїСЂРѕРїРёС€РµС‚ /update, СЃРєСЂРёРїС‚ РѕР±РЅРѕРІРёС‚СЃСЏ.
+        if update_found then -- Если найдено обновление, регистрируем команду /update.
+            sampRegisterChatCommand('update', function()  -- Если пользователь напишет команду, начнётся обновление.
+                update_state = true -- Если человек пропишет /update, скрипт обновится.
             end)
         else
-            sampAddChatMessage('{FFFFFF}РќРµС‚Сѓ РґРѕСЃС‚СѓРїРЅС‹С… РѕР±РЅРѕРІР»РµРЅРёР№!')
+            sampAddChatMessage('{FFFFFF}Нету доступных обновлений!')
         end
     end)
 
     
 
-    sampAddChatMessage("{00FF00}[GovPanel]: РќР°Р¶РјРёС‚Рµ B, С‡С‚РѕР±С‹ РѕС‚РєСЂС‹С‚СЊ РЅР°СЃС‚СЂРѕР№РєРё.", -1)
+    sampAddChatMessage("{00FF00}[GovPanel]: Нажмите B, чтобы открыть настройки.", -1)
     
     if (config.settings.rank == 10) then
         for i, newsLines in ipairs(gnews) do
         local commandName = "news" .. i
 
         sampRegisterChatCommand(commandName, function()
-            -- sampAddChatMessage("{00FF00}[GovPanel]: РќРѕРІРѕСЃС‚Рё #" .. i, -1)
+            -- sampAddChatMessage("{00FF00}[GovPanel]: Новости #" .. i, -1)
             lua_thread.create(
                 function ()
                     for _, line in ipairs(newsLines) do
@@ -633,8 +633,8 @@ function main()
     end
 
     exampleHotKey = HOTKEY.RegisterHotKey(
-        "OpenMenu",       -- РёРјСЏ С…РѕС‚РєРµСЏ
-        false,            -- РЅРµ РѕРґРёРЅРѕС‡РЅР°СЏ РєР»Р°РІРёС€Р°
+        "OpenMenu",       -- имя хоткея
+        false,            -- не одиночная клавиша
         decodeJson(config.settings.bind),     -- Ctrl + M (0x11 = Ctrl, 0x4D = M)
         function()
             local result, ped = getCharPlayerIsTargeting(playerHandle)
@@ -664,10 +664,10 @@ function main()
     )
     while true do
         wait(0)
-        if update_state then -- Р•СЃР»Рё С‡РµР»РѕРІРµРє РЅР°РїРёС€РµС‚ /update Рё РѕР±РЅРѕРІР»РµРЅРё РµСЃС‚СЊ, РЅР°С‡РЅС‘С‚СЃСЏ СЃРєР°Р°С‡РёРІР°РЅРёРµ СЃРєСЂРёРїС‚Р°.
+        if update_state then -- Если человек напишет /update и обновлени есть, начнётся скаачивание скрипта.
             downloadUrlToFile(script_url, script_path, function(id, status)
                 if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    sampAddChatMessage("{FFFFFF}РЎРєСЂРёРїС‚ {32CD32}СѓСЃРїРµС€РЅРѕ {FFFFFF}РѕР±РЅРѕРІР»С‘РЅ.", 0xFF0000)
+                    sampAddChatMessage("{FFFFFF}Скрипт {32CD32}успешно {FFFFFF}обновлён.", 0xFF0000)
                 end
             end)
             break
@@ -692,14 +692,14 @@ function saveGnews()
     end
 
     inicfg.save(data, gnewsFilePath)
-    sampAddChatMessage("{00FF00}[GovPanel]: Р“РѕСЃ. РЅРѕРІРѕСЃС‚Рё СЃРѕС…СЂР°РЅРµРЅС‹!", -1)
+    sampAddChatMessage("{00FF00}[GovPanel]: Гос. новости сохранены!", -1)
 
     for i, newsLines in ipairs(gnews) do
         local commandName = "news" .. i
 
         sampRegisterChatCommand(commandName, function()
             lua_thread.create(function ()
-                -- sampAddChatMessage("{00FF00}[GovPanel]: РќРѕРІРѕСЃС‚Рё #" .. i, -1)
+                -- sampAddChatMessage("{00FF00}[GovPanel]: Новости #" .. i, -1)
                 for _, line in ipairs(newsLines) do
                     sampAddChatMessage(u8:decode(line), -1)
                     wait(250)
@@ -737,11 +737,11 @@ end
 HOTKEY = {
 	MODULEINFO = {
 		version = 1,
-		author = 'РЎРѕРњРёРљ'
+		author = 'СоМиК'
 	},
 	Text = {
-		WaitForKey = 'РќР°Р¶РјРёС‚Рµ Р»СЋР±СѓСЋ РєР»Р°РІРёС€Сѓ...',
-		NoKey = '< РЎРІРѕР±РѕРґРЅРѕ >'
+		WaitForKey = 'Нажмите любую клавишу...',
+		NoKey = '< Свободно >'
 	},
 	List = {},
 	ActiveKeys = {},
@@ -873,7 +873,7 @@ HOTKEY.ShowHotKey = setmetatable(
 					return true
 				end
 			else
-				imgui.Button('РҐРѕС‚РєРµР№ РЅРµ РЅР°Р№РґРµРЅ', sizeButton)
+				imgui.Button('Хоткей не найден', sizeButton)
 			end
 		end
 	}
