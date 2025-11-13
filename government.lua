@@ -31,51 +31,56 @@ function file_exists(file_path)
     end
 end
 
-function check_update()
+function check_update(onDone)
     downloadUrlToFile(update_url, update_path, function(id, status)
-        if status == dlstatus.STATUSEX_ENDDOWNLOAD then
-            -- Проверяем, существует ли файл после загрузки
-            if not file_exists(update_path) then
-                sampAddChatMessage("{FF0000}Ошибка: файл update.ini не загружен!", -1)
-                return
-            end
-
-            local updateIni = inicfg.load(nil, update_path)
-            
-            -- Если загрузка не удалась (updateIni nil), выводим ошибку
-            if not updateIni then
-                sampAddChatMessage("{FF0000}Ошибка чтения update.ini!", -1)
-                return
-            end
-
-            -- Если updateIni существует, проверяем версию
-            if not updateIni.info or not updateIni.info.vers then
-                sampAddChatMessage("{FF0000}Неверный формат update.ini, нет информации о версии!", -1)
-                return
-            end
-
-            -- Проверка на наличие новой версии
-            if tonumber(updateIni.info.vers) > script_vers then
-                sampAddChatMessage("{FFFFFF}Найдена новая версия: {32CD32}"..updateIni.info.vers_text, -1)
-                sampAddChatMessage("{FFFFFF}Введите {32CD32}/update {FFFFFF}для обновления.", -1)
-
-                update_found = true
-
-                -- Регистрируем команду ТОЛЬКО после загрузки данных
-                sampRegisterChatCommand('update', function()
-                    update_state = true
-                    sampAddChatMessage("{32CD32}Начинаю обновление...", -1)
-
-                    downloadUrlToFile(updateIni.info.script_url, script_path, function(_, st)
-                        if st == dlstatus.STATUSEX_ENDDOWNLOAD then
-                            sampAddChatMessage("{32CD32}Скрипт успешно обновлён! Перезагрузите его.", -1)
-                        end
-                    end)
-                end)
-            else
-                sampAddChatMessage("{FFFFFF}Обновлений нет.", -1)
-            end
+        if status ~= dlstatus.STATUSEX_ENDDOWNLOAD then
+            return
         end
+
+        -- Файл не загрузился
+        if not file_exists(update_path) then
+            sampAddChatMessage("{FF0000}Ошибка: файл update.ini не загружен!", -1)
+            if onDone then onDone() end
+            return
+        end
+
+        local updateIni = inicfg.load(nil, update_path)
+
+        if not updateIni then
+            sampAddChatMessage("{FF0000}Ошибка чтения update.ini!", -1)
+            if onDone then onDone() end
+            return
+        end
+
+        if not updateIni.info or not updateIni.info.vers then
+            sampAddChatMessage("{FF0000}Неверный формат update.ini!", -1)
+            if onDone then onDone() end
+            return
+        end
+
+        -- Проверка версии
+        if tonumber(updateIni.info.vers) > script_vers then
+            sampAddChatMessage("{FFFFFF}Найдена новая версия: {32CD32}"..updateIni.info.vers_text, -1)
+            sampAddChatMessage("{FFFFFF}Введите {32CD32}/update {FFFFFF}для обновления.", -1)
+
+            update_found = true
+
+            sampRegisterChatCommand('update', function()
+                update_state = true
+                sampAddChatMessage("{32CD32}Начинаю обновление...", -1)
+
+                downloadUrlToFile(updateIni.info.script_url, script_path, function(_, st)
+                    if st == dlstatus.STATUSEX_ENDDOWNLOAD then
+                        sampAddChatMessage("{32CD32}Скрипт успешно обновлён! Перезагрузите его.", -1)
+                    end
+                end)
+            end)
+        else
+            sampAddChatMessage("{FFFFFF}Обновлений нет.", -1)
+        end
+
+        -- ?? вызываем callback ПОСЛЕ завершения
+        if onDone then onDone() end
     end)
 end
 
@@ -591,15 +596,17 @@ function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(50) end
 
-    check_update()
+    check_update(function ()
+        if update_found then -- Если найдено обновление, регистрируем команду /update.
+            sampRegisterChatCommand('update', function()  -- Если пользователь напишет команду, начнётся обновление.
+                update_state = true -- Если человек пропишет /update, скрипт обновится.
+            end)
+        else
+            sampAddChatMessage('{FFFFFF}Нету доступных обновлений!')
+        end
+    end)
 
-    if update_found then -- Если найдено обновление, регистрируем команду /update.
-        sampRegisterChatCommand('update', function()  -- Если пользователь напишет команду, начнётся обновление.
-            update_state = true -- Если человек пропишет /update, скрипт обновится.
-        end)
-    else
-        sampAddChatMessage('{FFFFFF}Нету доступных обновлений!')
-    end
+    
 
     sampAddChatMessage("{00FF00}[GovPanel]: Нажмите B, чтобы открыть настройки.", -1)
     
