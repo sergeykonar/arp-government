@@ -1,12 +1,87 @@
 local imgui = require("imgui")
 local inicfg = require("inicfg")
 require('lib.moonloader')
+local dlstatus = require('lib.moonloader').download_status
 local encoding = require("encoding")
 local sampev = require('lib.samp.events')
 local vk = require 'vkeys'
 
 encoding.default = "CP1251"
 local u8 = encoding.UTF8
+
+update_state = false -- Если переменная == true, значит начнётся обновление.
+update_found = false -- Если будет true, будет доступна команда /update.
+
+local script_vers = 1.0
+local script_vers_text = "v1.0" -- Название нашей версии. В будущем будем её выводить ползователю.
+
+local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/update.ini' -- Путь к ini файлу. Позже нам понадобиться.
+local update_path = getWorkingDirectory() .. "\\config\\update.ini"
+
+local script_url = '' -- Путь скрипту.
+local script_path = thisScript().path
+
+function file_exists(file_path)
+    local file = io.open(file_path, "r") -- пытаемся открыть файл на чтение
+    if file then
+        file:close()  -- если файл существует, закрываем его
+        return true
+    else
+        return false  -- файл не существует
+    end
+end
+
+function check_update()
+    downloadUrlToFile(update_url, update_path, function(id, status)
+        if status == dlstatus.STATUSEX_ENDDOWNLOAD then
+            -- Проверяем, существует ли файл после загрузки
+            if not file_exists(update_path) then
+                sampAddChatMessage("{FF0000}Ошибка: файл update.ini не загружен!", -1)
+                return
+            end
+
+            local updateIni = inicfg.load(nil, update_path)
+            
+            -- Если загрузка не удалась (updateIni nil), выводим ошибку
+            if not updateIni then
+                sampAddChatMessage("{FF0000}Ошибка чтения update.ini!", -1)
+                return
+            end
+
+            -- Если updateIni существует, проверяем версию
+            if not updateIni.info or not updateIni.info.vers then
+                sampAddChatMessage("{FF0000}Неверный формат update.ini, нет информации о версии!", -1)
+                return
+            end
+
+            -- Проверка на наличие новой версии
+            if tonumber(updateIni.info.vers) > script_vers then
+                sampAddChatMessage("{FFFFFF}Найдена новая версия: {32CD32}"..updateIni.info.vers_text, -1)
+                sampAddChatMessage("{FFFFFF}Введите {32CD32}/update {FFFFFF}для обновления.", -1)
+
+                update_found = true
+
+                -- Регистрируем команду ТОЛЬКО после загрузки данных
+                sampRegisterChatCommand('update', function()
+                    update_state = true
+                    sampAddChatMessage("{32CD32}Начинаю обновление...", -1)
+
+                    downloadUrlToFile(updateIni.info.script_url, script_path, function(_, st)
+                        if st == dlstatus.STATUSEX_ENDDOWNLOAD then
+                            sampAddChatMessage("{32CD32}Скрипт успешно обновлён! Перезагрузите его.", -1)
+                        end
+                    end)
+                end)
+            else
+                sampAddChatMessage("{FFFFFF}Обновлений нет.", -1)
+            end
+        else
+            sampAddChatMessage("{FF0000}Не удалось скачать update.ini. Статус: " .. tostring(update_path), -1)
+        end
+    end)
+end
+
+
 
 -- Конфиг по умолчанию
 local defaultConfig = {
@@ -518,6 +593,16 @@ function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(50) end
 
+    check_update()
+
+    if update_found then -- Если найдено обновление, регистрируем команду /update.
+        sampRegisterChatCommand('update', function()  -- Если пользователь напишет команду, начнётся обновление.
+            update_state = true -- Если человек пропишет /update, скрипт обновится.
+        end)
+    else
+        sampAddChatMessage('{FFFFFF}Нету доступных обновлений!')
+    end
+
     sampAddChatMessage("{00FF00}[GovPanel]: Нажмите B, чтобы открыть настройки.", -1)
     
     if (config.settings.rank == 10) then
@@ -573,6 +658,15 @@ function main()
     )
     while true do
         wait(0)
+        if update_state then -- Если человек напишет /update и обновлени есть, начнётся скаачивание скрипта.
+            downloadUrlToFile(script_url, script_path, function(id, status)
+                if status == dlstatus.STATUS_ENDDOWNLOADDATA then
+                    sampAddChatMessage("{FFFFFF}Скрипт {32CD32}успешно {FFFFFF}обновлён.", 0xFF0000)
+                end
+            end)
+            break
+        end
+        
         if wasKeyPressed(VK_B) and not sampIsChatInputActive() and not sampIsDialogActive() then
             main_window_state.v = not main_window_state.v
         end
