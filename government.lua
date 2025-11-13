@@ -18,6 +18,7 @@ local script_vers_text = "v1.2" -- Название нашей версии. В будущем будем её выв
 local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/update.ini' -- Путь к ini файлу. Позже нам понадобиться.
 local update_path = getWorkingDirectory() .. "\\config\\update.ini"
 
+
 local script_url = '' -- Путь скрипту.
 local script_path = thisScript().path
 
