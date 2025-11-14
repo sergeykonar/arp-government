@@ -12,8 +12,8 @@ local u8 = encoding.UTF8
 update_state = false -- Если переменная == true, значит начнётся обновление.
 update_found = false -- Если будет true, будет доступна команда /update.
 
-local script_vers = 1.2
-local script_vers_text = "v1.2" -- Название нашей версии. В будущем будем её выводить ползователю.
+local script_vers = 1.3
+local script_vers_text = "v1.3" -- Название нашей версии. В будущем будем её выводить ползователю.
 
 local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/update.ini' -- Путь к ini файлу. Позже нам понадобиться.
 local update_path = getWorkingDirectory() .. "\\config\\update.ini"
@@ -77,7 +77,7 @@ function check_update(onDone)
                 end)
             end)
         else
-            sampAddChatMessage("{FFFFFF}Обновлений нет.", -1)
+            -- sampAddChatMessage("{FFFFFF}Обновлений нет.", -1)
         end
 
         -- ?? вызываем callback ПОСЛЕ завершения
@@ -111,8 +111,6 @@ local license_window = imgui.ImBool(false)
 local layer_window = imgui.ImBool(false)
 local invite_window = imgui.ImBool(false)
 
-
-
 -- Таблица соответствий
 local department_map = {
     ["LS"] = u8"Мэрия ЛС",
@@ -126,15 +124,9 @@ local department_reverse_map = {
     [u8"Мэрия СФ"] = "SF"
 }
 
--- Загрузка конфига
--- Загрузка конфига
--- Загрузка конфига
--- Загружаем или создаём конфиг
 -- Загружаем или создаём конфиг
 local config = inicfg.load(defaultConfig, iniFilePath)
 inicfg.save(config, iniFilePath) -- сохраняем при первом запуске
-
-
 
 -- Функция split
 function split(str, sep)
@@ -209,6 +201,7 @@ local playerLicenses = {}
 
 local waitingForJailTime = false
 local jailTimeReceived = false
+local isWaitingResponse = false
 local isWaitingForLic = false
 local releasePrice = nil
 
@@ -448,6 +441,7 @@ function imgui.OnDrawFrame()
             lua_thread.create(function ()
                 if (jailTimeReceived) then
                     jailTimeReceived = false
+                    isWaitingResponse = true
                     sampSendChat("/do Портфель в руке.")
                     wait(250)
                     sampSendChat("/me достал из портфеля документ об УДО и ручку")
@@ -517,6 +511,23 @@ end
 
 
 function sampev.onServerMessage(color, text)
+    if (isWaitingResponse == true and text == "Вы вытащили "..targetName.." из тюрьмы") then
+        isWaitingResponse = false
+    end
+    if (isWaitingResponse == true and text == "Этот человек - опасный преступник. Он не может быть освобождён досрочно") then
+        lua_thread.create(function ()
+            isWaitingResponse = false
+            sampSendChat("/do Ответ от МВД: "..targetRPName.." явлется особо опасным преступником.")
+            wait(550)
+            sampSendChat("Сер, к соажению МВД не одобрило ваше УДО.")
+            wait(550)
+            sampSendChat("Вы являетесь особо опысным преступником.")
+            wait(350)
+            sampSendChat("Вероятнее всего вас посадили сотрудники ФБР.")
+            wait(350)
+            sampSendChat("/n Тебя посадили ФБР или админ")
+        end)
+    end
     if waitingForJailTime then
         -- Проверяем формат: Nick_Surname выйдет на свободу через 15 минут.
         local pattern = string.format("%s выйдет на свободу через {.-}?(%%d+):%%d+", targetName)
@@ -603,7 +614,7 @@ function main()
                 update_state = true -- Если человек пропишет /update, скрипт обновится.
             end)
         else
-            sampAddChatMessage('{FFFFFF}Нету доступных обновлений!')
+
         end
     end)
 
