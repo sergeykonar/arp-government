@@ -16,7 +16,7 @@ local script_vers = 1.3
 local script_vers_text = "v1.3" -- Название нашей версии. В будущем будем её выводить ползователю.
 
 local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/update.ini' -- Путь к ini файлу. Позже нам понадобиться.
-local update_path = getWorkingDirectory() .. "\\config\\update.ini"
+local update_path = getWorkingDirectory() .. "\\config\\gov_update.ini"
 
 
 local script_url = '' -- Путь скрипту.
@@ -40,7 +40,7 @@ function check_update(onDone)
 
         -- Файл не загрузился
         if not file_exists(update_path) then
-            sampAddChatMessage("{FF0000}Ошибка: файл update.ini не загружен!", -1)
+            sampAddChatMessage("{FF0000}Ошибка: файл gov_update.ini не загружен!", -1)
             if onDone then onDone() end
             return
         end
@@ -48,13 +48,13 @@ function check_update(onDone)
         local updateIni = inicfg.load(nil, update_path)
 
         if not updateIni then
-            sampAddChatMessage("{FF0000}Ошибка чтения update.ini!", -1)
+            sampAddChatMessage("{FF0000}Ошибка чтения gov_update.ini!", -1)
             if onDone then onDone() end
             return
         end
 
         if not updateIni.info or not updateIni.info.vers then
-            sampAddChatMessage("{FF0000}Неверный формат update.ini!", -1)
+            sampAddChatMessage("{FF0000}Неверный формат gov_update.ini!", -1)
             if onDone then onDone() end
             return
         end
