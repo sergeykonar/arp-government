@@ -12,8 +12,8 @@ local u8 = encoding.UTF8
 update_state = false -- Если переменная == true, значит начнётся обновление.
 update_found = false -- Если будет true, будет доступна команда /update.
 
-local script_vers = 1.3
-local script_vers_text = "v1.3" -- Название нашей версии. В будущем будем её выводить ползователю.
+local script_vers = 1.4
+local script_vers_text = "v1.4" -- Название нашей версии. В будущем будем её выводить ползователю.
 
 local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/update.ini' -- Путь к ini файлу. Позже нам понадобиться.
 local update_path = getWorkingDirectory() .. "\\config\\gov_update.ini"
@@ -97,6 +97,7 @@ local defaultConfig = {
 }
 
 local Color = {
+    WHITE = "{FFFFFF}",
     RED = "{FF0000}",
     GREEN = "{00FF00}",
     ORANGE = "{FFA500}"
@@ -604,6 +605,21 @@ function hasProfessionalLicense(playerName)
     return transportLicense:find("Профессиональный уровень") ~= nil
 end
 
+function ud()
+    lua_thread.create(function ()
+        local rangName = u8:decode(rank_names[config.settings.rank])
+        sampSendChat("/me достал из внутреннего кармана службеное удостоверение")
+        wait(350)
+        sampSendChat("/do Удостоверение в руке.")
+        wait(350)
+        sampSendChat("/me развернул удостоверение и показал его человеку напротив")
+        wait(350)
+        sampSendChat("/do На удостоверении указано: имя, подразделение и должность.")
+        wait(350)
+        sampSendChat("/do "..getMyRPName()..", Администрация губернатора "..config.settings.department..", должность: "..rangName..".")
+    end)
+end
+
 -- Основной цикл
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
@@ -620,8 +636,8 @@ function main()
     end)
 
     
-
-    sampAddChatMessage("{00FF00}[GovPanel]: Нажмите B, чтобы открыть настройки.", -1)
+    sampAddChatMessage("[GobPanel]: Версия скрипта: "..Color.GREEN..script_vers_text,-1)
+    sampAddChatMessage("[GovPanel]: Нажмите "..Color.ORANGE.."B"..Color.WHITE..", чтобы открыть настройки.", -1)
     
     if (config.settings.rank == 10) then
         for i, newsLines in ipairs(gnews) do
@@ -635,14 +651,11 @@ function main()
                         sampSendChat(u8:decode(line))
                         wait(250)
                     end
-
-                end
-            )
-            
-        end)
+                end) 
+            end)
+        end
     end
-    
-    end
+    sampRegisterChatCommand("ud", ud)
 
     exampleHotKey = HOTKEY.RegisterHotKey(
         "OpenMenu",       -- имя хоткея
@@ -738,6 +751,16 @@ end
 function getMyName()
     local _, id = sampGetPlayerIdByCharHandle(playerPed)
     return sampGetPlayerNickname(id)
+end
+
+function getMyRPName()
+    local _, id = sampGetPlayerIdByCharHandle(playerPed)
+    local isMyNameRP, name = getRPName(sampGetPlayerNickname(id))
+    if (isMyNameRP) then
+        return name
+    else
+       return "" 
+    end
 end
 
 function getRang()
