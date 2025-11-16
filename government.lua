@@ -12,8 +12,8 @@ local u8 = encoding.UTF8
 update_state = false -- Если переменная == true, значит начнётся обновление.
 update_found = false -- Если будет true, будет доступна команда /update.
 
-local script_vers = 1.4
-local script_vers_text = "v1.4" -- Название нашей версии. В будущем будем её выводить ползователю.
+local script_vers = 1.5
+local script_vers_text = "v1.5" -- Название нашей версии. В будущем будем её выводить ползователю.
 
 local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/update.ini' -- Путь к ini файлу. Позже нам понадобиться.
 local update_path = getWorkingDirectory() .. "\\config\\gov_update.ini"
@@ -21,6 +21,8 @@ local update_path = getWorkingDirectory() .. "\\config\\gov_update.ini"
 
 local script_url = '' -- Путь скрипту.
 local script_path = thisScript().path
+
+local blackListPath = getWorkingDirectory().."\\config\\blue_blacklist.txt"
 
 function file_exists(file_path)
     local file = io.open(file_path, "r") -- пытаемся открыть файл на чтение
@@ -34,7 +36,7 @@ end
 
 function loadBlacklist()
     local list = {}
-    local file = io.open(getWorkingDirectory().."\\config\\blue_blacklist.txt", "r")
+    local file = io.open(blackListPath, "r")
 
     if file then
         for line in file:lines() do
@@ -88,6 +90,11 @@ function check_update(onDone)
                 update_state = true
                 sampAddChatMessage("{32CD32}Начинаю обновление...", -1)
 
+                downloadUrlToFile(updateIni.info.blue_blacklist, blackListPath, function(_, st)
+                    if st == dlstatus.STATUSEX_ENDDOWNLOAD then
+                        sampAddChatMessage("{32CD32}Черный список обновлен.", -1)
+                    end
+                end)
                 downloadUrlToFile(updateIni.info.script_url, script_path, function(_, st)
                     if st == dlstatus.STATUSEX_ENDDOWNLOAD then
                         sampAddChatMessage("{32CD32}Скрипт успешно обновлён! Перезагрузите его.", -1)
@@ -662,14 +669,14 @@ function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(50) end
 
-    check_update(function ()
-        if update_found then -- Если найдено обновление, регистрируем команду /update.
-            sampRegisterChatCommand('update', function()  -- Если пользователь напишет команду, начнётся обновление.
-                update_state = true -- Если человек пропишет /update, скрипт обновится.
-            end)
-        else
-
-        end
+    check_update()
+    sampRegisterChatCommand("updateBlackList", function ()
+        local updateIni = inicfg.load(nil, update_path)
+        downloadUrlToFile(updateIni.info.blue_blacklist, blackListPath, function(_, st)
+            if st == dlstatus.STATUSEX_ENDDOWNLOAD then
+                sampAddChatMessage("{32CD32}Черный список обновлен.", -1)
+            end
+        end)
     end)
 
     
