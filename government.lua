@@ -32,6 +32,24 @@ function file_exists(file_path)
     end
 end
 
+function loadBlacklist()
+    local list = {}
+    local file = io.open(getWorkingDirectory().."\\config\\blue_blacklist.txt", "r")
+
+    if file then
+        for line in file:lines() do
+            local nick = line:match("^%s*(.-)%s*$") -- trim
+            if nick ~= "" then
+                table.insert(list, nick)
+            end
+        end
+        file:close()
+    end
+
+    return list
+end
+
+
 function check_update(onDone)
     downloadUrlToFile(update_url, update_path, function(id, status)
         if status ~= dlstatus.STATUSEX_ENDDOWNLOAD then
@@ -491,11 +509,30 @@ function imgui.OnDrawFrame()
 
         if imgui.Button(u8'Проверить на ЧС', imgui.ImVec2(200, 30)) then
             invite_window.v = false
+            local list = loadBlacklist()
+            local isBlackListed = isBlacklisted(targetRPName, list)
+            local status = ""
+            if (isBlackListed == true) then
+                status = Color.RED.."занесен в черный список правительства"
+            else 
+                status = Color.GREEN.."не находится в черном списке"
+            end
+            sampAddChatMessage("Гражданин "..Color.ORANGE..targetRPName.." "..status,-1)
+        
         end
 
         imgui.End()
     end
 
+end
+
+function isBlacklisted(nick, list)
+    for _, v in ipairs(list) do
+        if v == nick then
+            return true
+        end
+    end
+    return false
 end
 
 function askLic()
@@ -682,6 +719,9 @@ function main()
                         layer_window.v = true
                     elseif (rang >= 9) then
                         invite_window.v = true
+                        targetName = sampGetPlayerNickname(i)
+                        targetRPName = nameRP
+                        targetId = i
                     end
                 end
             end
