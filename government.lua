@@ -13,8 +13,8 @@ local u8 = encoding.UTF8
 update_state = false -- Если переменная == true, значит начнётся обновление.
 update_found = false -- Если будет true, будет доступна команда /update.
 
-local script_vers = 1.5
-local script_vers_text = "v1.5" -- Название нашей версии. В будущем будем её выводить ползователю.
+local script_vers = 1.6
+local script_vers_text = "v1.6" -- Название нашей версии. В будущем будем её выводить ползователю.
 
 local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/config/gov_update.ini' -- Путь к ini файлу. Позже нам понадобиться.
 local update_path = getWorkingDirectory() .. "\\config\\gov_update.ini"
