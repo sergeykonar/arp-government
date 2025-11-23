@@ -1,5 +1,6 @@
 local imgui = require("imgui")
 local inicfg = require("inicfg")
+local sampev = require('lib.samp.events')
 require('lib.moonloader')
 local dlstatus = require('lib.moonloader').download_status
 local encoding = require("encoding")
@@ -12,8 +13,8 @@ local u8 = encoding.UTF8
 update_state = false -- Если переменная == true, значит начнётся обновление.
 update_found = false -- Если будет true, будет доступна команда /update.
 
-local script_vers = 1.5
-local script_vers_text = "v1.5" -- Название нашей версии. В будущем будем её выводить ползователю.
+local script_vers = 1.6
+local script_vers_text = "v1.6" -- Название нашей версии. В будущем будем её выводить ползователю.
 
 local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/config/gov_update.ini' -- Путь к ini файлу. Позже нам понадобиться.
 local update_path = getWorkingDirectory() .. "\\config\\gov_update.ini"
@@ -83,6 +84,15 @@ function check_update(onDone)
         if tonumber(updateIni.info.vers) > script_vers then
             sampAddChatMessage("{FFFFFF}Найдена новая версия: {32CD32}"..updateIni.info.vers_text, -1)
             sampAddChatMessage("{FFFFFF}Введите {32CD32}/update {FFFFFF}для обновления.", -1)
+            local changes = {}
+            for line in string.gmatch(updateIni.info.whats_new, "([^\\]+)") do
+                table.insert(changes, line)
+            end
+
+            sampAddChatMessage("{FFFFFF}В новой версии:", -1)
+            for _, msg in ipairs(changes) do
+                sampAddChatMessage(Color.ORANGE .. msg, -1)
+            end
 
             update_found = true
 
@@ -136,6 +146,9 @@ local main_window_state = imgui.ImBool(false)
 local license_window = imgui.ImBool(false)
 local layer_window = imgui.ImBool(false)
 local invite_window = imgui.ImBool(false)
+
+local targetHistoryName = {}
+local isCheckingBlackListed = false
 
 -- Таблица соответствий
 local department_map = {
@@ -320,6 +333,7 @@ function imgui.OnDrawFrame()
         elseif current_tab == 2 then
             local key = HOTKEY.getKeysText('OpenMenu')
             imgui.Text(u8"Помощь по скрипту:\n\n• Выберите свой ранг и подразделение.\n• Нажмите 'Сохранить настройки' чтобы применить изменения.\n• Выберите клаившу для взаимодействия с игроком\n• Наведите на игрока и нажмите ПКМ + "..key.."\n• Используйте эту вкладку, чтобы ознакомиться с инструкцией.")
+            imgui.Text(u8"Список комманд:\n\n• /ud - показать удостоврение\n• /hist [id] - посмотреть историю изменения имени по ID игрока\n• /updateBlackList - обвновить черный список \n• Наведите на игрока и нажмите ПКМ + "..key.."\n• Используйте эту вкладку, чтобы ознакомиться с инструкцией.")
         elseif current_tab == 3 then
             imgui.BeginChild("GNewsPanel", imgui.ImVec2(0, 0), true)
 
@@ -408,7 +422,7 @@ function imgui.OnDrawFrame()
                 wait(800)
                 sampSendChat("/do Документ подписан, печать поставлена.")
                 wait(800)
-                sampSendChat("/givelic "..targetId.."2 30000")
+                sampSendChat("/givelic "..targetId.." 2 30000")
                 license_window.v = false
             end)
         end
@@ -436,7 +450,7 @@ function imgui.OnDrawFrame()
                     wait(800)
                     sampSendChat("/do Документ подписан, печать поставлена.")
                     wait(800)
-                    sampSendChat("/givelic "..targetId.."1 10000")
+                    sampSendChat("/givelic "..targetId.." 1 10000")
                     license_window.v = false
                 elseif (hasProfessionalLicense(targetRPName)) then
                     sampAddChatMessage('У игрока уже есть проф. права', -1)
@@ -444,6 +458,13 @@ function imgui.OnDrawFrame()
                     sampAddChatMessage('Перед продажей лицензии необходимо, чтобы вы попросили игрока показать лицензии', -1)
                 end
             end)
+        end
+
+        if imgui.Button(u8'Проверить на ЧС', imgui.ImVec2(200, 30)) then
+            invite_window.v = false
+            isCheckingBlackListed = true
+            sampAddChatMessage("Проверка "..Color.ORANGE.."/history "..targetName, -1)
+            sampSendChat("/history "..targetName)
         end
 
         imgui.End()
@@ -498,6 +519,13 @@ function imgui.OnDrawFrame()
             end)
         end
 
+        if imgui.Button(u8'Проверить на ЧС', imgui.ImVec2(200, 30)) then
+            invite_window.v = false
+            isCheckingBlackListed = true
+            sampAddChatMessage("Проверка "..Color.ORANGE.."/history "..targetName, -1)
+            sampSendChat("/history "..targetName)
+        end
+
         imgui.End()
     end
 
@@ -516,15 +544,10 @@ function imgui.OnDrawFrame()
 
         if imgui.Button(u8'Проверить на ЧС', imgui.ImVec2(200, 30)) then
             invite_window.v = false
-            local list = loadBlacklist()
-            local isBlackListed = isBlacklisted(targetRPName, list)
-            local status = ""
-            if (isBlackListed == true) then
-                status = Color.RED.."занесен в черный список правительства"
-            else 
-                status = Color.GREEN.."не находится в черном списке"
-            end
-            sampAddChatMessage("Гражданин "..Color.ORANGE..targetRPName.." "..status,-1)
+            isCheckingBlackListed = true
+            sampAddChatMessage("Проверка "..Color.ORANGE.."/history "..targetName, -1)
+            sampSendChat("/history "..targetName)
+            
         
         end
 
@@ -534,11 +557,14 @@ function imgui.OnDrawFrame()
 end
 
 function isBlacklisted(nick, list)
+    -- isCheckingBlackListed = true
     for _, v in ipairs(list) do
         if v == nick then
             return true
         end
     end
+    sampSendChat("/history "..targetName)
+    
     return false
 end
 
@@ -637,7 +663,7 @@ function hasBasicLicense(playerName)
     end
 
     local transportLicense = playerLicenses[playerName].transport or ""
-    return transportLicense:find("Базовые") ~= nil
+    return transportLicense:find("Базовый уровень") ~= nil
 end
 
 function hasProfessionalLicense(playerName)
@@ -663,6 +689,31 @@ function ud()
         sampSendChat("/do "..getMyRPName()..", Администрация губернатора "..config.settings.department..", должность: "..rangName..".")
     end)
 end
+
+function hist(arg)
+    local args = {}
+    for word in arg:gmatch("%S+") do
+        table.insert(args, word)
+    end
+
+    if #args == 0 then
+        local error_msg = "Подсказка: "..Color.ORANGE.."/hist [id]"
+        print(error_msg)
+        sampAddChatMessage(error_msg, -1)
+        return
+    end
+
+    local id = tonumber(args[1])
+
+    if id == nil then
+        sampAddChatMessage("ID должен быть числом!", -1)
+        return
+    end
+
+    local name = sampGetPlayerNickname(id)
+    sampSendChat("/history "..name)
+end
+
 
 -- Основной цикл
 function main()
@@ -700,6 +751,7 @@ function main()
         end
     end
     sampRegisterChatCommand("ud", ud)
+    sampRegisterChatCommand("hist", hist)
 
     exampleHotKey = HOTKEY.RegisterHotKey(
         "OpenMenu",       -- имя хоткея
@@ -714,8 +766,8 @@ function main()
                     local isRPName, nameRP = getRPName(name)
                     isTargetNameRP = isRPName
                     local rang = getRang()
-                    sampAddChatMessage(tostring(rang), -1)
                     if (rang == 6 or rang == 7) then
+                        targetName = sampGetPlayerNickname(i)
                         targetRPName = nameRP
                         targetId = i
                         license_window.v = true
@@ -724,7 +776,7 @@ function main()
                         targetRPName = nameRP
                         targetId = i
                         layer_window.v = true
-                    elseif (rang >= 9) then
+                    elseif (rang >= 8) then
                         invite_window.v = true
                         targetName = sampGetPlayerNickname(i)
                         targetRPName = nameRP
@@ -812,6 +864,65 @@ end
 
 function getRang()
     return config.settings.rank
+end
+
+function sampev.onShowDialog(dialogId, style, title, button1, button2, text)
+    if (targetName~=nill and title:find("{FFCD00}Прошлые имена ") and isCheckingBlackListed == true) then
+        lua_thread.create(function()
+            -- добавляем ники с текущей страницы
+            local namesOnPage = extractNames(text)
+            for _, n in ipairs(namesOnPage) do
+                table.insert(targetHistoryName, n)
+            end
+
+            -- Проверяем наличие кнопки "Стр" (следующая страница)
+            if button1:find("Стр") then
+                wait(getMyPing())
+                sampCloseCurrentDialogWithButton(1)   -- нажимаем "Стр"
+                return
+            end
+
+            local isBlackListed = containsBlacklistedName(targetHistoryName, loadBlacklist())
+            local status = ""
+            if (isBlackListed == true) then
+                status = Color.RED.."занесен в черный список правительства"
+            else 
+                status = Color.GREEN.."не находится в черном списке"
+            end
+            sampAddChatMessage("Гражданин "..Color.ORANGE..targetRPName.." "..status,-1)
+
+            if (button1:find("Закрыть")) then
+                wait(getMyPing())
+                sampCloseCurrentDialogWithButton(1)
+                isCheckingBlackListed = false
+            end
+        end)
+    end
+end
+
+function containsBlacklistedName(historyNames, blacklist)
+    for _, histName in ipairs(historyNames) do
+        for _, blackName in ipairs(blacklist) do
+            if histName == blackName then
+                return true
+            end
+        end
+    end
+    return false 
+end
+
+function extractNames(text)
+    local names = {}
+    for name in text:gmatch("%d%d%.%d%d%.%d%d%d%d%s+([%w_]+)") do
+        table.insert(names, name)
+    end
+    return names
+end
+
+function getMyPing()
+    local _, id = sampGetPlayerIdByCharHandle(playerPed)
+    local ping = sampGetPlayerPing(id)
+    return ping
 end
 
 -- Hot Key
