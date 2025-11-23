@@ -13,8 +13,8 @@ local u8 = encoding.UTF8
 update_state = false -- Если переменная == true, значит начнётся обновление.
 update_found = false -- Если будет true, будет доступна команда /update.
 
-local script_vers = 1.6
-local script_vers_text = "v1.6" -- Название нашей версии. В будущем будем её выводить ползователю.
+local script_vers = 1.5
+local script_vers_text = "v1.5" -- Название нашей версии. В будущем будем её выводить ползователю.
 
 local update_url = 'https://raw.githubusercontent.com/sergeykonar/arp-government/refs/heads/main/config/gov_update.ini' -- Путь к ini файлу. Позже нам понадобиться.
 local update_path = getWorkingDirectory() .. "\\config\\gov_update.ini"
@@ -24,6 +24,13 @@ local script_url = '' -- Путь скрипту.
 local script_path = thisScript().path
 
 local blackListPath = getWorkingDirectory().."\\config\\blue_blacklist.txt"
+
+local Color = {
+    WHITE = "{FFFFFF}",
+    RED = "{FF0000}",
+    GREEN = "{00FF00}",
+    ORANGE = "{FFA500}"
+}
 
 function file_exists(file_path)
     local file = io.open(file_path, "r") -- пытаемся открыть файл на чтение
@@ -91,7 +98,7 @@ function check_update(onDone)
 
             sampAddChatMessage("{FFFFFF}В новой версии:", -1)
             for _, msg in ipairs(changes) do
-                sampAddChatMessage(Color.ORANGE .. msg, -1)
+                sampAddChatMessage(Color.ORANGE..tostring(msg), -1)
             end
 
             update_found = true
@@ -130,14 +137,6 @@ local defaultConfig = {
         bind =  encodeJson({ 77 })
     }
 }
-
-local Color = {
-    WHITE = "{FFFFFF}",
-    RED = "{FF0000}",
-    GREEN = "{00FF00}",
-    ORANGE = "{FFA500}"
-}
-
 
 local iniFilePath = "gov_config.ini"
 local gnewsFilePath = "gnews_config.ini"
