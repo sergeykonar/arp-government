@@ -453,8 +453,13 @@ function imgui.OnDrawFrame()
                     license_window.v = false
                 elseif (hasProfessionalLicense(targetRPName)) then
                     sampAddChatMessage('У игрока уже есть проф. права', -1)
+                elseif not hasInfoAboutLicenses(targetRPName) then
+                    sampAddChatMessage('Перед продажей лицензии необходимо, чтобы вы попросили игрока показать лицензии.', -1)
                 else
-                    sampAddChatMessage('Перед продажей лицензии необходимо, чтобы вы попросили игрока показать лицензии', -1)
+                    sampAddChatMessage(Color.ORANGE.. 'Вы не можете продавать базовые права!', -1)
+                    sampSendChat("К сожалению, базовые права можно получить только в автошколе.")
+                    wait(250)
+                    sampSendChat("Получите базовые права, затем я вам продам профессиональные права.")
                 end
             end)
         end
@@ -637,6 +642,10 @@ function sampev.onServerMessage(color, text)
             local weapon = cleanText:match("На оружие:%s*(.+)")
             playerLicenses[targetRPName].weapon = weapon or "Отсутствует"
             isWaitingForLic = false
+            if (hasNoBasicLicense(targetRPName)) then
+                sampAddChatMessage('У игрока нет'..Color.ORANGE..' базовых прав.', -1)
+                sampAddChatMessage('Нажмите '..Color.ORANGE..'"Продать проф.права"'..Color.WHITE..", чтобы обяъснить игроку ситуацию.", -1)
+            end
             sampAddChatMessage(tostring(playerLicenses[targetRPName].transport), -1)
         elseif cleanText:find("Лицензии") == nil and cleanText:find("На транспорт") == nil and cleanText:find("На оружие") == nil then
             -- Конец блока лицензий
@@ -656,6 +665,15 @@ function getReleasePrice(minutes)
     end
 end
 
+function hasNoBasicLicense(playerName)
+    if not playerLicenses[playerName] then
+        return false -- информации о игроке нет
+    end
+
+    local transportLicense = playerLicenses[playerName].transport or ""
+    return transportLicense:find("Отсутствует") ~= nil
+end
+
 function hasBasicLicense(playerName)
     if not playerLicenses[playerName] then
         return false -- информации о игроке нет
@@ -672,6 +690,10 @@ function hasProfessionalLicense(playerName)
 
     local transportLicense = playerLicenses[playerName].transport or ""
     return transportLicense:find("Профессиональный уровень") ~= nil
+end
+
+function hasInfoAboutLicenses(playerName)
+    return playerLicenses[playerName] ~= nil
 end
 
 function ud()
